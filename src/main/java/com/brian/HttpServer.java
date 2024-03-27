@@ -1,16 +1,15 @@
 package com.brian;
 
+import com.brian.cache.InMemoryURLCache;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +23,11 @@ public class HttpServer {
 
     public void run() throws Exception {
         var serverProperties = new ServerProperties();
-        var urlCache = new InMemoryURLCache(new Base62Encoder(), serverProperties.getDomain());
+
+        // TTL is defined in seconds. Convert to millis.
+        var ttl = serverProperties.getCacheTTL() * 1000;
+
+        var urlCache = new InMemoryURLCache(new Base62Encoder(), serverProperties.getDomain(), ttl);
 
         var bootstrap = new ServerBootstrap();
 
@@ -42,15 +45,27 @@ public class HttpServer {
                             ChannelPipeline p = ch.pipeline();
                             p.addLast(new HttpRequestDecoder());
                             p.addLast(new HttpResponseEncoder());
+
+                            // We use this to handle read times from slow or idle clients.
+                            p.addLast(new ReadTimeoutHandler(1));
+
+                            // We use this to decode the body and generate the shortened URL.
                             p.addLast(new URLServiceHandler(urlCache));
                         }
                     });
+
+            // Set the connect timeout, and we don't need keepalive.
+            bootstrap.childOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
+                    .childOption(ChannelOption.SO_KEEPALIVE, false);
 
             // Bind to the port and listen
             ChannelFuture f = bootstrap.bind(serverProperties.getPort()).sync();
 
             logger.info("Starting the URL shortening service on port {}  :: Using {} CPU cores",
                     serverProperties.getPort(), numCores);
+
+            logger.info("Using domain {}", serverProperties.getDomain());
+            logger.info("Using cache TTL {}s", ttl);
 
             f.channel().closeFuture().sync();
 

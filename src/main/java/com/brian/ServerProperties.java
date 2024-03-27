@@ -18,6 +18,7 @@ public class ServerProperties {
 
     private final int port;
     private final String domain;
+    private final int cacheTTL;
 
     public ServerProperties() throws IOException, InvalidServerPropertiesException {
         try (var input = HttpServer.class.getClassLoader().getResourceAsStream(PROPERTIES_FILE)) {
@@ -36,7 +37,7 @@ public class ServerProperties {
             }
 
             try {
-                port = Integer.parseInt(portStr);
+                port = Integer.parseInt(portStr.trim());
             } catch (NumberFormatException e) {
                 throw new InvalidServerPropertiesException("The port number defined in the properties file "
                         + PROPERTIES_FILE + " is not a valid integer [" + portStr + "]");
@@ -47,6 +48,19 @@ public class ServerProperties {
                 throw new InvalidServerPropertiesException("The domain name is not defined in the properties file "
                         + PROPERTIES_FILE);
             }
+
+            var ttlStr = serverProps.getProperty("cache.ttl");
+            if (ttlStr == null || ttlStr.isBlank()) {
+                throw new InvalidServerPropertiesException("The cache TTL is not defined in the properties file "
+                        + PROPERTIES_FILE);
+            }
+
+            try {
+                cacheTTL = Integer.parseInt(ttlStr.trim());
+            } catch (NumberFormatException e) {
+                throw new InvalidServerPropertiesException("The cache TTL defined in the properties file "
+                        + PROPERTIES_FILE + " is not a valid integer [" + portStr + "]");
+            }
         }
     }
 
@@ -56,6 +70,10 @@ public class ServerProperties {
 
     public String getDomain() {
         return domain;
+    }
+
+    public int getCacheTTL() {
+        return cacheTTL;
     }
 
 }
