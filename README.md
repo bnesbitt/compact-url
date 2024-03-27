@@ -1,10 +1,10 @@
 # A URL shortening service
 
 ## Building
-This requires JDK 17 and Maven
+This requires JDK 17, and uses the provided Maven wrapper:
 
 ```
-mvn clean install
+./mvnw clean install
 ```
 
 ## Running

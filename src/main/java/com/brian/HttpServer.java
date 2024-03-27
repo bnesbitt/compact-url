@@ -10,30 +10,30 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class HttpServer {
 
-    // Hard coded port number.
-    // TODO: Could read in from args to make it configurable.
-    private static final int PORT = 8888;
+    private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
 
     public static void main(String[] args) throws Exception {
         new HttpServer().run();
     }
 
     public void run() throws Exception {
-        ServerBootstrap bootstrap = new ServerBootstrap();
+        var serverProperties = new ServerProperties();
+        var urlCache = new InMemoryURLCache(new Base62Encoder(), serverProperties.getDomain());
+
+        var bootstrap = new ServerBootstrap();
 
         // Allocate all available cores.
-        EventLoopGroup bossGroup = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors());
+        int numCores = Runtime.getRuntime().availableProcessors();
+        EventLoopGroup bossGroup = new NioEventLoopGroup(numCores);
         EventLoopGroup workers = new NioEventLoopGroup();
 
-        URLCache urlCache = new URLCache("short.co");
-
         try {
-
             bootstrap.group(bossGroup, workers)
                     .channel(NioServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
@@ -46,10 +46,16 @@ public class HttpServer {
                         }
                     });
 
-            ChannelFuture f = bootstrap.bind(PORT).sync();
+            // Bind to the port and listen
+            ChannelFuture f = bootstrap.bind(serverProperties.getPort()).sync();
+
+            logger.info("Starting the URL shortening service on port {}  :: Using {} CPU cores",
+                    serverProperties.getPort(), numCores);
+
             f.channel().closeFuture().sync();
 
         } finally {
+            logger.info("Shutting down the URL shortening service.");
             bossGroup.shutdownGracefully();
             workers.shutdownGracefully();
         }

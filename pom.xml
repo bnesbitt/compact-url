@@ -47,11 +47,10 @@
             <artifactId>netty-all</artifactId>
             <version>4.1.108.Final</version>
         </dependency>
-
         <dependency>
-            <groupId>commons-validator</groupId>
-            <artifactId>commons-validator</artifactId>
-            <version>1.7</version>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.3</version>
         </dependency>
     </dependencies>
 
