@@ -22,14 +22,32 @@ port=8888
 The server expects POST requests with the body containing a single text line containing the URL
 to be shortened. Refer to the examples below.
 
-**NOTE**
+**NOTE:** 
 The server only accepts POST requests. All other requests will be rejected.
+
+### Properties
+A number of properties can be set in the *server.properties* file:
+```properties
+port=8888
+domain=shorty.com
+cache.ttl=60
+```
+where:
+- **port** is the port the server will listen on.
+- **domain** is the domain name to be used in the shortened URL.
+- **cache.ttl** The cache TTL (in seconds) used to determine when expired entries will be evicted.
 
 ## Examples
 When the server is running you can send requests to it using:
 ```shell
 curl -v --request POST http://127.0.0.1:8888 -d 'http://google.com/pathasdfasdfasd'
 ```
+The command above will send a POST request to the server running on port 8888. The request body is
+defined with:
+```shell
+-d 'http://google.com/pathasdfasdfasd'
+```
+
 The server will reply with:
 ```shell
 < HTTP/1.1 200 OK
