@@ -13,6 +13,8 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 public class HttpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
@@ -21,13 +23,11 @@ public class HttpServer {
         new HttpServer().run();
     }
 
-    public void run() throws Exception {
+    public void run() throws IOException, InterruptedException {
         var serverProperties = new ServerProperties();
 
         // TTL is defined in seconds. Convert to millis.
         var ttl = serverProperties.getCacheTTL() * 1000;
-
-        var urlCache = new InMemoryURLCache(new Base62Encoder(), serverProperties.getDomain(), ttl);
 
         var bootstrap = new ServerBootstrap();
 
@@ -36,14 +36,14 @@ public class HttpServer {
         EventLoopGroup bossGroup = new NioEventLoopGroup(numCores);
         EventLoopGroup workers = new NioEventLoopGroup();
 
-        try {
+        try (var urlCache = new InMemoryURLCache(new Base62Encoder(), serverProperties.getDomain(), ttl)) {
             bootstrap.group(bossGroup, workers)
                     .channel(NioServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
-                        protected void initChannel(SocketChannel ch) throws Exception {
+                        protected void initChannel(SocketChannel ch) {
                             ChannelPipeline p = ch.pipeline();
-                            p.addLast(new HttpRequestDecoder());
+                            p.addLast(new HttpRequestDecoder()); // The default netty HTTP decoder and encoder.
                             p.addLast(new HttpResponseEncoder());
 
                             // We use this to handle read times from slow or idle clients.
@@ -58,7 +58,7 @@ public class HttpServer {
             bootstrap.childOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
                     .childOption(ChannelOption.SO_KEEPALIVE, false);
 
-            // Bind to the port and listen
+            // Bind to the port and listen.
             ChannelFuture f = bootstrap.bind(serverProperties.getPort()).sync();
 
             logger.info("Starting the URL shortening service on port {}  :: Using {} CPU cores",

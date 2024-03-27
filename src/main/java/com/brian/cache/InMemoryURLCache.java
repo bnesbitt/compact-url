@@ -4,17 +4,23 @@ import com.brian.URLEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class InMemoryURLCache implements URLCache, Runnable {
+/**
+ * An in-memory data store to map URLs to the shortened counterparts.
+ *
+ */
+public class InMemoryURLCache implements URLCache, Runnable, Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(InMemoryURLCache.class);
 
@@ -29,7 +35,10 @@ public class InMemoryURLCache implements URLCache, Runnable {
 
     private final String domain;
 
+    // The cache TTL in milliseconds.
     private final int ttl;
+
+    private final ScheduledExecutorService scheduler;
 
     private final URLEncoder encoder;
 
@@ -39,7 +48,7 @@ public class InMemoryURLCache implements URLCache, Runnable {
         this.ttl = ttl;
 
         // Schedule a periodic task to evict old entries.
-        var scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler = Executors.newSingleThreadScheduledExecutor();
         scheduler.scheduleAtFixedRate(this, 0, 5, TimeUnit.SECONDS);
     }
 
@@ -139,4 +148,33 @@ public class InMemoryURLCache implements URLCache, Runnable {
         }
     }
 
+    @Override
+    public void close() {
+        logger.info("Shutting down the cache");
+
+        lock.writeLock().lock();
+        try {
+            scheduler.shutdown();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public boolean isEmpty() {
+        lock.readLock().lock();
+        try {
+            return cache.isEmpty();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public int size() {
+        lock.readLock().lock();
+        try {
+            return cache.size();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
 }
