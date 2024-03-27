@@ -56,7 +56,7 @@ public class InMemoryURLCache implements URLCache, Runnable {
                 var entry = cache.get(lowercaseUrl);
                 if (entry != null) {
                     String shortUrl = entry.shortUrl();
-                    logger.info("[{}] Found an existing entry for {} : {}", uuid.toString(), url, shortUrl);
+                    logger.info("[{}] Found an existing entry for {} : {}", uuid, url, shortUrl);
                     return shortUrl;
                 }
             } finally {
@@ -70,7 +70,7 @@ public class InMemoryURLCache implements URLCache, Runnable {
                 var entry = cache.get(lowercaseUrl);
                 if (entry != null) {
                     String shortUrl = entry.shortUrl();
-                    logger.info("[{}] Found an existing entry for {} : {}", uuid.toString(), url, shortUrl);
+                    logger.info("[{}] Found an existing entry for {} : {}", uuid, url, shortUrl);
                     return shortUrl;
                 }
 
@@ -81,7 +81,7 @@ public class InMemoryURLCache implements URLCache, Runnable {
                 // Store the URL and its shortened version.
                 cache.put(lowercaseUrl, new URLEntry(lowercaseUrl, shortUrl, encoding, System.currentTimeMillis()));
 
-                logger.info("[{}] Caching URL {} with short version {}", uuid.toString(), url, shortUrl);
+                logger.info("[{}] Caching URL {} with short version {}", uuid, url, shortUrl);
 
                 return shortUrl;
             } finally {
