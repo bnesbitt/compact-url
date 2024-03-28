@@ -15,6 +15,13 @@ public class Base62Encoder implements URLEncoder {
 
     private final Random rand = new SecureRandom();
 
+    /**
+     * Generates a random string of length 6.
+     *
+     * @param notUsed The URL to be encoded.
+     *
+     * @return A random 6-character string.
+     */
     @Override
     public String encode(String notUsed) {
         char[] shortURL = new char[URL_LEN];
@@ -25,4 +32,5 @@ public class Base62Encoder implements URLEncoder {
 
         return new String(shortURL);
     }
+
 }

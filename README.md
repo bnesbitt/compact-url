@@ -19,11 +19,51 @@ resources directory if you wish to use a different port.
 port=8888
 ```
 
-The server expects POST requests with the body containing a single text line containing the URL
-to be shortened. Refer to the examples below.
+### POST Requests
+POST requests are used to shorten the URLs. The POST body should contain a single line containing just the
+URL that we want to shorten. For example:
+```shell
+curl -v --request POST http://127.0.0.1:8888 -d 'http://google.com/path'
+```
+The server will respond with a shortened (random) URL in the response body:
+```shell
+http://shorty.com/EN4Ryh
+```
 
-**NOTE:** 
-The server only accepts POST requests. All other requests will be rejected.
+### GET Requests
+To use the shortened URL, send a GET request using the path defined in the POST example above:
+```shell
+curl -v  http://127.0.0.1:8888/EN4Ryh
+```
+If there is a mapping of `EN4Ryh` to a URL then we get the redirect; for example:
+```shell
+< HTTP/1.1 301 Moved Permanently
+< content-type: text/html; charset=UTF-8
+< connection: close
+< content-length: 214
+< location: http://google.com/path
+< 
+<!DOCTYPE HTML>
+<html lang="en-US">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="refresh" content="0; url=http://google.com/path">
+        <title>Page Redirection</title>
+    </head>
+</html>
+```
+Note that the server sends a 301 and adds the original URL in the `location` header.
+
+If the lookup fails then we get a 404:
+```shell
+< HTTP/1.1 404 Not Found
+< content-type: text/html; charset=UTF-8
+< connection: close
+< content-length: 9
+< 
+* Closing connection 0
+Not Found
+```
 
 ### Properties
 A number of properties can be set in the *server.properties* file:

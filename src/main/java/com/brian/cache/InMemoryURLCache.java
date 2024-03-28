@@ -29,7 +29,8 @@ public class InMemoryURLCache implements URLCache, Runnable, Closeable {
     private final Map<String, URLEntry> cache = new HashMap<>();
 
     // Contains the hashes used to generate the short URLs.
-    private final Set<String> hashes = new HashSet<>();
+    // The key is the hash, and the value is the original URL.
+    private final Map<String, String> hashes = new HashMap<>();
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -103,14 +104,23 @@ public class InMemoryURLCache implements URLCache, Runnable, Closeable {
         }
     }
 
+    public String getOriginalUrlFor(String hash) {
+        lock.readLock().lock();
+        try {
+            return hashes.get(hash);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     private String getUniqueHash(String url) {
         var encoding = "";
 
         for (;;) {
             encoding = encoder.encode(url);
-            if (encoding != null && !hashes.contains(encoding)) {
+            if (encoding != null && hashes.get(encoding) == null) {
                 // record that we have this hash.
-                hashes.add(encoding);
+                hashes.put(encoding, url);
 
                 // We have a unique hash, we're done here.
                 break;

@@ -12,4 +12,5 @@ public interface URLCache {
 
     String shorten(UUID uuid, String url);
 
+    String getOriginalUrlFor(String hash);
 }

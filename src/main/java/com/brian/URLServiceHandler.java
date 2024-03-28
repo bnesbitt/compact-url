@@ -37,10 +37,16 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
     protected void channelRead0(ChannelHandlerContext context, Object req) throws Exception {
         if (req instanceof HttpRequest httpRequest) {
             HttpMethod method = httpRequest.method();
-            if (HttpMethod.POST != method) {
+            if (HttpMethod.POST != method && HttpMethod.GET != method) {
                 // We only accept POSTs
                 respondMethodNotAllowed(context, httpRequest);
                 logTxnTime();
+                return;
+            }
+
+            if (HttpMethod.GET == method) {
+                handleGet(context, httpRequest);
+                var path = httpRequest.uri();
             }
         }
 
@@ -60,15 +66,15 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
                     var body = postBody.toString();
 
                     logger.info("[{}] Received a post request from [{}]:{} - POST body: {}",
-                            uuid.toString(), ip, port, body);
+                            uuid, ip, port, body);
 
                     String shortenedUrl = cache.shorten(uuid, body);
                     if (shortenedUrl != null) {
-                        logger.info("[{}] URL {} has been encoded to {}", uuid.toString(), body, shortenedUrl);
+                        logger.info("[{}] URL {} has been encoded to {}", uuid, body, shortenedUrl);
                         sendResponse(context, shortenedUrl);
                     } else {
                         logger.warn("[{}] Failed to encode: The POST does not contain a valid URL: {}",
-                                uuid.toString(), body);
+                                uuid, body);
                         sendErrorResponse(context, body);
                     }
 
@@ -160,10 +166,71 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
         ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
     }
 
+
+    private void handleGet(ChannelHandlerContext ctx, HttpRequest httpRequest) {
+
+        // Remove the leading /
+        var path = httpRequest.uri();
+        if (!path.isBlank() && path.startsWith("/")) {
+            path = path.substring(1);
+        }
+
+        // Check the cache for the path.
+        String url = cache.getOriginalUrlFor(path);
+
+        /*
+         * If we get a valid URL back from the cache then we send a redirect.
+         */
+        StringBuilder buf = new StringBuilder();
+        HttpResponseStatus status;
+        if (null != url) {
+            status = HttpResponseStatus.MOVED_PERMANENTLY;
+
+            String redirectTemplate = """
+                    <!DOCTYPE HTML>
+                    <html lang="en-US">
+                        <head>
+                            <meta charset="UTF-8">
+                            <meta http-equiv="refresh" content="0; url=%s">
+                            <title>Page Redirection</title>
+                        </head>
+                    </html>
+                    """;
+
+            String redirectResponse = String.format(redirectTemplate, url);
+            buf.append(redirectResponse);
+
+            logger.info("[{}] Redirecting GET request {} to {}", uuid, path, url);
+        } else {
+            // Not found.
+            status = HttpResponseStatus.NOT_FOUND;
+            buf.append(HttpResponseStatus.NOT_FOUND.reasonPhrase());
+
+            logger.warn("[{}] Cannot redirect path", uuid);
+        }
+
+        String responseBody = buf.toString();
+
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status,
+                Unpooled.copiedBuffer(responseBody, CharsetUtil.UTF_8));
+
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/html; charset=UTF-8");
+        response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, responseBody.length());
+
+        // Add the location header.
+        if (null != url) {
+            response.headers().set(HttpHeaderNames.LOCATION, url);
+        }
+
+        ctx.write(response);
+        ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+    }
+
     private void logTxnTime() {
         long endTime = System.nanoTime();
         long totalTimeMicro = (endTime - startTime) / 1000;
-        logger.info("[{}] Total transaction time: {}us", uuid.toString(), totalTimeMicro);
+        logger.info("[{}] Total transaction time: {}us", uuid, totalTimeMicro);
     }
 
 }
