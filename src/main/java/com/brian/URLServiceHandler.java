@@ -38,7 +38,7 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
         if (req instanceof HttpRequest httpRequest) {
             HttpMethod method = httpRequest.method();
             if (HttpMethod.POST != method && HttpMethod.GET != method) {
-                // We only accept POSTs
+                // We only GET and POSTs.
                 respondMethodNotAllowed(context, httpRequest);
                 logTxnTime();
                 return;
@@ -46,7 +46,7 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
 
             if (HttpMethod.GET == method) {
                 handleGet(context, httpRequest);
-                var path = httpRequest.uri();
+                logTxnTime();
             }
         }
 
@@ -54,32 +54,16 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
             // fetch the body from the request.
             ByteBuf content = httpContent.content();
             if (content != null && content.isReadable()) {
-                // The body is being streamed in, so store what we get until we get it all.
-                var bodyFragment = content.toString(CharsetUtil.UTF_8);
-                postBody.append(bodyFragment);
+                handleRequestContent(context, httpContent, content);
+            } else {
+                // No request body found!
+                var socketAddress = (InetSocketAddress) context.channel().remoteAddress();
+                var ip = socketAddress.getAddress().getHostAddress();
+                var port = socketAddress.getPort();
+                logger.warn("[{}] The POST request from [{}]:{} did not contain a body", uuid, ip, port);
 
-                if (req instanceof LastHttpContent) {
-                    // We're at the end of the stream now.
-                    var socketAddress = (InetSocketAddress) context.channel().remoteAddress();
-                    var ip = socketAddress.getAddress().getHostAddress();
-                    var port = socketAddress.getPort();
-                    var body = postBody.toString();
-
-                    logger.info("[{}] Received a post request from [{}]:{} - POST body: {}",
-                            uuid, ip, port, body);
-
-                    String shortenedUrl = cache.shorten(uuid, body);
-                    if (shortenedUrl != null) {
-                        logger.info("[{}] URL {} has been encoded to {}", uuid, body, shortenedUrl);
-                        sendResponse(context, shortenedUrl);
-                    } else {
-                        logger.warn("[{}] Failed to encode: The POST does not contain a valid URL: {}",
-                                uuid, body);
-                        sendErrorResponse(context, body);
-                    }
-
-                    logTxnTime();
-                }
+                sendErrorBodyMissing(context);
+                logTxnTime();
             }
         }
     }
@@ -90,12 +74,44 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
             var socketAddress = (InetSocketAddress) ctx.channel().remoteAddress();
             var ip = socketAddress.getAddress().getHostAddress();
             var port = socketAddress.getPort();
-            logger.warn("[{}] Closing slow/idle client connection [{}]:{}", uuid.toString(), ip, port);
+            logger.warn("[{}] Closing slow/idle client connection [{}]:{}", uuid, ip, port);
             logTxnTime();
             ctx.close();
         } else {
             super.exceptionCaught(ctx, cause);
             ctx.close();
+        }
+    }
+
+    private void handleRequestContent(ChannelHandlerContext context,
+                                      HttpContent req,
+                                      ByteBuf content) {
+
+        // The body is being streamed in, so store what we get until we get it all.
+        var bodyFragment = content.toString(CharsetUtil.UTF_8);
+        postBody.append(bodyFragment);
+
+        if (req instanceof LastHttpContent) {
+            // We're at the end of the stream now.
+            var socketAddress = (InetSocketAddress) context.channel().remoteAddress();
+            var ip = socketAddress.getAddress().getHostAddress();
+            var port = socketAddress.getPort();
+            var body = postBody.toString();
+
+            logger.info("[{}] Received a post request from [{}]:{} - POST body: {}",
+                    uuid, ip, port, body);
+
+            String shortenedUrl = cache.shorten(uuid, body);
+            if (shortenedUrl != null) {
+                logger.info("[{}] URL {} has been encoded to {}", uuid, body, shortenedUrl);
+                sendResponse(context, shortenedUrl);
+            } else {
+                logger.warn("[{}] Failed to encode: The POST does not contain a valid URL: {}",
+                        uuid, body);
+                sendErrorResponse(context, body);
+            }
+
+            logTxnTime();
         }
     }
 
@@ -105,7 +121,7 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
         var port = socketAddress.getPort();
 
         logger.warn("[{}] Received an invalid {} request from [{}]:{}",
-                uuid.toString(), request.method().asciiName(), ip, port);
+                uuid, request.method().asciiName(), ip, port);
 
         var responseMsg = HttpResponseStatus.METHOD_NOT_ALLOWED.reasonPhrase();
 
@@ -147,6 +163,29 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
         buf.append(HttpResponseStatus.BAD_REQUEST.reasonPhrase());
         buf.append(" : The post does not contain a valid URL ");
         buf.append(body);
+
+        String responseBody = buf.toString();
+
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
+                HttpResponseStatus.BAD_REQUEST,
+                Unpooled.copiedBuffer(responseBody, CharsetUtil.UTF_8));
+
+        // Set the response headers.
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8");
+        // We're done, so tell the client to close the connection.
+        response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+        // Set the content length.
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH, responseBody.length());
+
+        // Send the response.
+        ctx.write(response);
+        ctx.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+    }
+
+    private void sendErrorBodyMissing(ChannelHandlerContext ctx) {
+        StringBuilder buf = new StringBuilder();
+        buf.append(HttpResponseStatus.BAD_REQUEST.reasonPhrase());
+        buf.append(" : The post body is missing.");
 
         String responseBody = buf.toString();
 
