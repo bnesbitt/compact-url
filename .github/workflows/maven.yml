@@ -30,17 +30,15 @@ jobs:
     - name: Build with Maven
       run: mvn clean install --file pom.xml
 
-    - name: Code Coverage
-      id: jacoco
-      uses: madrapps/jacoco-report@v1.6.1
+    - name: JaCoCo Code Coverage Report
+      id: jacoco_reporter
+      uses: PavanMudigonda/jacoco-reporter@v5.0
       with:
-        paths: |
-          ${{ github.workspace }}/target/site/jacoco/jacoco.xml
-        token: ${{ secrets.GITHUB_TOKEN }}
-        min-coverage-overall: 40
-        min-coverage-changed-files: 60
-
-    - name: Log coverage percentage
-      run: |
-        echo "coverage = ${{ steps.jacoco.outputs.coverage }}"
-        echo "branch coverage = ${{ steps.jacoco.outputs.branches }}"
+        coverage_results_path: target/site/jacoco/jacoco.xml
+        coverage_report_name: Coverage
+        coverage_report_title: JaCoCo
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        skip_check_run: false
+        minimum_coverage: 80
+        fail_below_threshold: false
+        publish_only_summary: false
