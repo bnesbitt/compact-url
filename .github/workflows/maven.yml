@@ -39,3 +39,8 @@ jobs:
         summary-filename: coverage-summary.json
         generate-workflow-summary: true
         workflow-summary-heading: JaCoCo Test Coverage Summary
+
+    - name: Log coverage percentage
+      run: |
+        echo "coverage = ${{ steps.jacoco.outputs.coverage }}"
+        echo "branch coverage = ${{ steps.jacoco.outputs.branches }}"
