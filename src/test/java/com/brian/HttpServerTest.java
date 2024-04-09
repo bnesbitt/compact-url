@@ -28,8 +28,10 @@ class HttpServerTest {
         public void run() {
             try {
                 httpServer.run();
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
                 throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+               System.out.println("Shutting down the test server.");
             }
         }
 
@@ -60,7 +62,10 @@ class HttpServerTest {
     }
 
     @AfterAll
-    static void end() {
+    static void end() throws InterruptedException {
+        // Wait a bit until the server is idle.
+        Thread.sleep(2000);
+
         if (null != testThread) {
             testThread.interrupt();
         }

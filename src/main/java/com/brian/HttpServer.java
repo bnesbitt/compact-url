@@ -59,6 +59,7 @@ public class HttpServer {
 
             // Set the connect timeout, and we don't need keepalive.
             bootstrap.childOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
+                    .childOption(ChannelOption.SO_REUSEADDR, true)
                     .childOption(ChannelOption.SO_KEEPALIVE, false);
 
             // Bind to the port and listen.
