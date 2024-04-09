@@ -30,7 +30,7 @@ jobs:
     - name: Build with Maven
       run: mvn clean install --file pom.xml
 
-    - name: Add coverage to PR
+    - name: Code Coverage.
       id: jacoco
       uses: madrapps/jacoco-report@v1.6.1
       with:
