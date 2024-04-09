@@ -30,10 +30,21 @@ jobs:
     - name: Build with Maven
       run: mvn clean install --file pom.xml
 
-    - name: JaCoCo Code Coverage Report
-      uses: PavanMudigonda/jacoco-reporter@v5.0
+    - name: Generate JaCoCo badge
+      id: jacoco
+      uses: cicirello/jacoco-badge-generator@v2
       with:
-        coverage_results_path: 'target/site/jacoco/jacoco.xml'
-        coverage_report_title: 'Test coverage results'
-        coverage_report_name: 'Test coverage results'
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        badges-directory: badges
+        generate-branches-badge: true
+        generate-summary: true
+
+    - name: Log coverage percentages to workflow output
+      run: |
+        echo "coverage = ${{ steps.jacoco.outputs.coverage }}"
+        echo "branches = ${{ steps.jacoco.outputs.branches }}"
+
+    - name: Upload JaCoCo coverage report as a workflow artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: jacoco-report
+        path: target/site/jacoco/
