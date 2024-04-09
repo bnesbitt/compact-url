@@ -24,11 +24,11 @@ import java.nio.charset.Charset;
 import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
-public class URLServiceHandlerTest {
+class URLServiceHandlerTest {
 
-    public class URLEmbeddedChannel extends EmbeddedChannel{
+    public static class URLEmbeddedChannel extends EmbeddedChannel{
 
-        private InetSocketAddress socketAddress;
+        private final InetSocketAddress socketAddress;
 
         public URLEmbeddedChannel(String host, int port, final ChannelHandler... handlers){
             super(handlers);
@@ -90,7 +90,7 @@ public class URLServiceHandlerTest {
                 HttpVersion.HTTP_1_1, HttpMethod.POST, "");
 
         // Send in the request.
-        httpRequest.content().writeBytes(new String("http://google.com/very/long/path").getBytes());
+        httpRequest.content().writeBytes("http://google.com/very/long/path".getBytes());
         embeddedChannel.writeInbound(httpRequest);
 
         // Check the response.
@@ -116,7 +116,7 @@ public class URLServiceHandlerTest {
                 HttpVersion.HTTP_1_1, HttpMethod.POST, "");
 
         // Send in the request.
-        httpRequest.content().writeBytes(new String("").getBytes());
+        httpRequest.content().writeBytes("".getBytes());
         embeddedChannel.writeInbound(httpRequest);
 
         // Check the response.
@@ -138,7 +138,7 @@ public class URLServiceHandlerTest {
                 HttpVersion.HTTP_1_1, HttpMethod.POST, "");
 
         // Send in the request.
-        httpRequest.content().writeBytes(new String("this is not a URL").getBytes());
+        httpRequest.content().writeBytes("this is not a URL".getBytes());
         embeddedChannel.writeInbound(httpRequest);
 
         // Check the response.

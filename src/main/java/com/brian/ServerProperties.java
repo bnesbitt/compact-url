@@ -21,10 +21,14 @@ public class ServerProperties {
     private final int cacheTTL;
 
     public ServerProperties() throws IOException, InvalidServerPropertiesException {
-        try (var input = HttpServer.class.getClassLoader().getResourceAsStream(PROPERTIES_FILE)) {
+        this(PROPERTIES_FILE);
+    }
+
+    public ServerProperties(String propertyFile) throws IOException, InvalidServerPropertiesException {
+        try (var input = HttpServer.class.getClassLoader().getResourceAsStream(propertyFile)) {
             if (null == input) {
-                logger.error("Failed to load the properties file {}", PROPERTIES_FILE);
-                throw new InvalidServerPropertiesException("Failed to load the properties file " + PROPERTIES_FILE);
+                logger.error("Failed to load the properties file {}", propertyFile);
+                throw new InvalidServerPropertiesException("Failed to load the properties file " + propertyFile);
             }
 
             var serverProps = new Properties();
@@ -33,33 +37,33 @@ public class ServerProperties {
             var portStr = serverProps.getProperty("port");
             if (portStr == null || portStr.isBlank()) {
                 throw new InvalidServerPropertiesException("The port number is not defined in the properties file "
-                        + PROPERTIES_FILE);
+                        + propertyFile);
             }
 
             try {
                 port = Integer.parseInt(portStr.trim());
             } catch (NumberFormatException e) {
                 throw new InvalidServerPropertiesException("The port number defined in the properties file "
-                        + PROPERTIES_FILE + " is not a valid integer [" + portStr + "]");
+                        + propertyFile + " is not a valid integer [" + portStr + "]");
             }
 
             domain = serverProps.getProperty("domain");
             if (null == domain || domain.isBlank()) {
                 throw new InvalidServerPropertiesException("The domain name is not defined in the properties file "
-                        + PROPERTIES_FILE);
+                        + propertyFile);
             }
 
             var ttlStr = serverProps.getProperty("cache.ttl");
             if (ttlStr == null || ttlStr.isBlank()) {
                 throw new InvalidServerPropertiesException("The cache TTL is not defined in the properties file "
-                        + PROPERTIES_FILE);
+                        + propertyFile);
             }
 
             try {
                 cacheTTL = Integer.parseInt(ttlStr.trim());
             } catch (NumberFormatException e) {
                 throw new InvalidServerPropertiesException("The cache TTL defined in the properties file "
-                        + PROPERTIES_FILE + " is not a valid integer [" + portStr + "]");
+                        + propertyFile + " is not a valid integer [" + portStr + "]");
             }
         }
     }
