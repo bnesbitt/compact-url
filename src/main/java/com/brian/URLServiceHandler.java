@@ -214,6 +214,8 @@ public class URLServiceHandler extends SimpleChannelInboundHandler<Object> {
             path = path.substring(1);
         }
 
+        logger.info("Checking URL cache for {}", path);
+
         // Check the cache for the path.
         String url = cache.getOriginalUrlFor(path);
 

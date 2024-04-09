@@ -45,4 +45,24 @@ class ServerPropertiesTest {
                 ()-> new ServerProperties("ttl-missing.properties"));
     }
 
+    @Test()
+    void invalidPort() {
+        assertThrows(InvalidServerPropertiesException.class,
+                ()-> new ServerProperties("invalid-port.properties"));
+    }
+
+    @Test()
+    void invalidTTL() {
+        assertThrows(InvalidServerPropertiesException.class,
+                ()-> new ServerProperties("invalid-ttl.properties"));
+    }
+
+    @Test
+    void defaultProperties() throws IOException {
+        var serverProps = new ServerProperties();
+        assertEquals(8888, serverProps.getPort());
+        assertEquals("shorty.com", serverProps.getDomain());
+        assertEquals(60, serverProps.getCacheTTL());
+    }
+
 }

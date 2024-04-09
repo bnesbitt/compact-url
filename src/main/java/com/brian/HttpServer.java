@@ -14,10 +14,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class HttpServer {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpServer.class);
+
+    private final AtomicBoolean isRunning = new AtomicBoolean(false);
 
     public static void main(String[] args) throws Exception {
         new HttpServer().run();
@@ -67,12 +70,21 @@ public class HttpServer {
             logger.info("Using domain {}", serverProperties.getDomain());
             logger.info("Using cache TTL {}s", ttl);
 
+            isRunning.set(true);
+
             f.channel().closeFuture().sync();
 
         } finally {
             logger.info("Shutting down the URL shortening service.");
             bossGroup.shutdownGracefully();
             workers.shutdownGracefully();
+
+            isRunning.set(false);
         }
     }
+
+    public boolean isRunning() {
+        return isRunning.get();
+    }
+
 }
