@@ -32,14 +32,13 @@ jobs:
 
     - name: Code Coverage
       id: jacoco
-      uses: cicirello/jacoco-badge-generator@v2
+      uses: madrapps/jacoco-report@v1.6.1
       with:
-        jacoco-csv-file: target/site/jacoco/jacoco.csv
-        generate-branches-badge: true
-        generate-summary: true
-        summary-filename: coverage-summary.json
-        generate-workflow-summary: true
-        workflow-summary-heading: JaCoCo Test Coverage Summary
+        paths: |
+          ${{ github.workspace }}/target/site/jacoco/jacoco.xml
+        token: ${{ secrets.GITHUB_TOKEN }}
+        min-coverage-overall: 40
+        min-coverage-changed-files: 60
 
     - name: Log coverage percentage
       run: |
